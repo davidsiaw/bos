@@ -1,0 +1,11 @@
+@font-face {
+  font-family: "vga";
+  font-style: normal;
+  font-weight: normal;
+  src: url("fonts/Web437_ToshibaSat_8x14.woff") format('woff');
+}
+
+body {
+  margin: 0px;
+  background: black;
+}

@@ -1,0 +1,168 @@
+
+raw_page "", "My first weaver page" do
+
+  html do
+    head do
+      title 'hello'
+
+      link rel: 'preload', as: 'font', href: 'css/fonts/Web437_ToshibaSat_8x14.woff', crossorigin: 'anonymous'
+      link rel: 'preload', as: 'style', href: 'css/fonts.css'
+
+      link rel: 'stylesheet', href: 'css/fonts.css'
+      link rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/xterm/3.14.5/xterm.min.css'
+      script src: 'https://cdnjs.cloudflare.com/ajax/libs/xterm/3.14.5/xterm.min.js' do
+      end
+      script src: 'https://cdnjs.cloudflare.com/ajax/libs/xterm/3.14.5/addons/fit/fit.min.js' do
+      end
+    end
+
+    body do
+      div id: 'terminal' do
+      end
+
+      script <<~SCRIPT
+        var term = new Terminal({ fontFamily: 'vga' });
+
+        term.open(document.getElementById('terminal'));
+        term.write('\\x1B[1;3;31mWelcome to the BunnyOS\\x1B[0m \\r\\n$ ')
+
+        var record = ""
+        term.onData(data => {
+          const char = data;
+          if (char === "\\r") {
+            term.write("\\r\\n");
+            send(record);
+            record = "";
+
+            term.write("$ ");
+          } else {
+            term.write(char);
+            record += char;
+          }
+        })
+
+        term.onKey(key => {
+          //console.log(char);
+        });
+
+        function reportWindowSize() {
+          var ch = term._core._renderCoordinator._renderer.dimensions.actualCellHeight;
+          var cw = term._core._renderCoordinator._renderer.dimensions.actualCellWidth;
+          var rows = Math.floor(document.body.clientHeight / ch);
+          var cols = Math.floor(document.body.clientWidth / cw);
+          console.log(cols)
+          console.log(rows)
+
+          term.resize(cols, rows)
+        }
+
+        var fs = {
+          "bin": {
+            "type": "dir",
+            "children": {
+              "pwd": {
+                type: "js",
+                contents: "pwd()"
+              },
+              "ls": {
+                type: "js",
+                contents: "list()"
+              },
+              "cd": {
+                type: "js",
+                contents: "cd()"
+              }
+            }
+          }
+        }
+        var cwd = "/"
+        var vars = {
+          "PATH":"/bin"
+        }
+        var argv;
+
+        function obj_from_dir(dir)
+        {
+          var toks = dir.split("/")
+          toks.shift()
+
+          var cur = fs;
+          var tok;
+          while(tok = toks.shift())
+          {
+            if (!cur[tok]) { return; }
+            if (cur[tok].type !== "dir") { return cur[tok]; }
+            cur = cur[tok].children;
+          }
+
+          return cur;
+        }
+
+        function obj_from_cwd()
+        {
+          return obj_from_dir(cwd);
+        }
+
+        function list()
+        {
+          for(var i in obj_from_cwd())
+          {
+            term.write(i + "\\n\\r")
+          }
+        }
+
+        function pwd()
+        {
+          term.write(cwd + "\\n\\r");
+        }
+
+        function cd()
+        {
+          var target = obj_from_cwd()[argv[1]];
+          if (target && target.type == "dir")
+          {
+            cwd += argv[1] + "/"
+          }
+          else
+          {
+            term.write("no such dir " + argv[1] + "\\r\\n");
+          }
+        }
+
+        function send(command)
+        {
+          var assign_regex = /(?<target>[A-Z_]+)<=(?<stuff>.*)/;
+          var assign_match = command.match(assign_regex);
+          if (assign_match)
+          {
+            console.log(assign_match)
+            vars[assign_match.groups.target] = assign_match.groups.stuff
+          }
+          else
+          {
+            var toks = command.split(' ');
+
+            argv = toks;
+            refd_exec(toks[0]);
+          }
+        }
+
+        function refd_exec(name)
+        {
+          if(!vars.PATH) { return; }
+
+          var thing = obj_from_dir(vars.PATH + "/" + name);
+          if(!thing) { return; }
+          if(thing.type !== "js") { return; }
+
+          eval(thing.contents);
+        }
+
+        window.onresize = reportWindowSize;
+
+        reportWindowSize();
+
+      SCRIPT
+    end
+  end
+end
