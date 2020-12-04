@@ -57,23 +57,26 @@ raw_page "", "My first weaver page" do
         }
 
         var fs = {
-          "bin": {
-            "type": "dir",
-            "children": {
-              "pwd": {
-                type: "js",
-                contents: "pwd()"
-              },
-              "ls": {
-                type: "js",
-                contents: "list()"
-              },
-              "cd": {
-                type: "js",
-                contents: "cd()"
+          "type": "dir",
+          "children": {
+            "bin": {
+              "type": "dir",
+              "children": {
+                "pwd": {
+                  type: "js",
+                  contents: "pwd()"
+                },
+                "ls": {
+                  type: "js",
+                  contents: "list()"
+                },
+                "cd": {
+                  type: "js",
+                  contents: "cd()"
+                }
               }
             }
-          }
+          },
         }
         var cwd = "/"
         var vars = {
@@ -86,16 +89,23 @@ raw_page "", "My first weaver page" do
           var toks = dir.split("/")
           toks.shift()
 
-          var cur = fs;
+          var cur = fs.children;
+          var arr = [fs];
           var tok;
           while(tok = toks.shift())
           {
+            if (tok === '..' && arr.length > 1) {
+              arr.pop();
+              cur = arr[arr.length - 1].children;
+              continue;
+            }
             if (!cur[tok]) { return; }
             if (cur[tok].type !== "dir") { return cur[tok]; }
+            arr.push(cur[tok]);
             cur = cur[tok].children;
           }
 
-          return cur;
+          return arr[arr.length - 1];
         }
 
         function obj_from_cwd()
@@ -105,7 +115,7 @@ raw_page "", "My first weaver page" do
 
         function list()
         {
-          for(var i in obj_from_cwd())
+          for(var i in obj_from_cwd().children)
           {
             term.write(i + "\\n\\r")
           }
@@ -118,7 +128,7 @@ raw_page "", "My first weaver page" do
 
         function cd()
         {
-          var target = obj_from_cwd()[argv[1]];
+          var target = obj_from_dir(cwd + argv[1] + "/");
           if (target && target.type == "dir")
           {
             cwd += argv[1] + "/"
